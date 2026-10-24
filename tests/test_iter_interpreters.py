@@ -404,6 +404,36 @@ def test_iter_interpreters_uv_minor_version_link_loses_to_its_target(
     assert uv_probed("3.15") == ["cpython-3.15.0b3-macos-aarch64-none/bin/python"]
 
 
+@pytest.mark.parametrize(
+    ("concrete", "link"),
+    [
+        pytest.param("cpython-3.15.0b3-windows-x86_64-none", "cpython-3.15-windows-x86_64-none", id="prerelease"),
+        # the link ties with its target on version, so directory name order decides, and "-" sorts before "."
+        pytest.param("cpython-3.14.0-windows-x86_64-none", "cpython-3.14-windows-x86_64-none", id="first-release"),
+    ],
+)
+def test_iter_interpreters_uv_minor_version_junction_loses_to_its_target(
+    uv_dir: Path,
+    uv_install: Callable[..., None],
+    uv_probed: Callable[[str | None], list[str]],
+    mocker: MockerFixture,
+    concrete: str,
+    link: str,
+) -> None:
+    """On Windows uv links minor versions with a directory junction, which ``Path.is_symlink`` does not report."""
+    uv_install(f"{concrete}/python.exe")
+    if IS_WIN:  # pragma: win32 cover
+        import _winapi
+
+        _winapi.CreateJunction(str(uv_dir / concrete), str(uv_dir / link))
+    else:  # pragma: win32 no cover
+        # stand in for the junction with a symlink that does not report as one
+        (uv_dir / link).symlink_to(uv_dir / concrete)
+        mocker.patch.object(Path, "is_symlink", return_value=False)
+
+    assert uv_probed("3") == [f"{concrete}/python.exe"]
+
+
 def test_iter_interpreters_uv_probes_one_executable_per_install(
     uv_dir: Path, uv_install: Callable[..., None], monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
 ) -> None:
