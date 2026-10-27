@@ -30,6 +30,8 @@ if TYPE_CHECKING:
         ">=3.12,<4.x",
         ">=3.x,<4",
         "<,4",
+        ">=3.12,foo",
+        ">=3.12, 4",
     ],
 )
 def test_bad_py_spec(text: str) -> None:
