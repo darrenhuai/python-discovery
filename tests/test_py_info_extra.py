@@ -454,7 +454,7 @@ def test_resolve_to_system_leaves_shared_info_untouched(mocker: MockerFixture, s
     mocker.patch.object(PythonInfo, "from_exe", return_value=shared)
     mocker.patch.object(PythonInfo, "discover_exe", return_value=shared)
 
-    results = []
+    results: list[PythonInfo] = []
     for venv in ("/some/venv-a", "/some/venv-b"):
         target = copy.deepcopy(CURRENT)
         target.system_executable = system_executable
