@@ -440,25 +440,31 @@ def test_iter_interpreters_uv_minor_version_link_loses_to_its_target(
     ],
 )
 def test_iter_interpreters_uv_minor_version_junction_loses_to_its_target(
-    uv_dir: Path,
     uv_install: Callable[..., None],
     uv_probed: Callable[[str | None], list[str]],
-    mocker: MockerFixture,
+    uv_junction: Callable[[str, str], None],
     concrete: str,
     link: str,
 ) -> None:
-    """On Windows uv links minor versions with a directory junction, which ``Path.is_symlink`` does not report."""
     uv_install(f"{concrete}/python.exe")
-    if IS_WIN:  # pragma: win32 cover
-        import _winapi
-
-        _winapi.CreateJunction(str(uv_dir / concrete), str(uv_dir / link))
-    else:  # pragma: win32 no cover
-        # stand in for the junction with a symlink that does not report as one
-        (uv_dir / link).symlink_to(uv_dir / concrete)
-        mocker.patch.object(Path, "is_symlink", return_value=False)
+    uv_junction(concrete, link)
 
     assert uv_probed("3") == [f"{concrete}/python.exe"]
+
+
+@pytest.fixture
+def uv_junction(uv_dir: Path, mocker: MockerFixture) -> Callable[[str, str], None]:
+    def _junction(target: str, link: str) -> None:
+        if IS_WIN:  # pragma: win32 cover
+            import _winapi
+
+            _winapi.CreateJunction(str(uv_dir / target), str(uv_dir / link))
+        else:  # pragma: win32 no cover
+            # stand in for the junction with a symlink that does not report as one
+            (uv_dir / link).symlink_to(uv_dir / target)
+            mocker.patch.object(Path, "is_symlink", return_value=False)
+
+    return _junction
 
 
 def test_iter_interpreters_uv_probes_one_executable_per_install(
