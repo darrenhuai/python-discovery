@@ -533,16 +533,24 @@ def _read_python_version_file(start: str | Path, *, search_parents: bool = True)
     current = start
     while True:
         candidate = os.path.join(current, ".python-version") if Path(current).is_dir() else current
-        if Path(candidate).is_file():
-            with Path(candidate).open(encoding="utf-8") as fh:
-                if versions := [v for line in fh if (v := line.strip()) and not v.startswith("#")]:
-                    return versions
+        if Path(candidate).is_file() and (versions := _versions_in_file(candidate)):
+            return versions
         if not search_parents:
             return None
         parent = Path(current).parent
         if parent == current:
             return None
         current = parent
+
+
+def _versions_in_file(path: str | Path) -> list[str]:
+    try:
+        # pyenv reads raw bytes, so a byte that is not UTF-8 (a Latin-1 comment, say) must not hide the versions
+        with Path(path).open(encoding="utf-8", errors="replace") as fh:
+            return [v for line in fh if (v := line.strip()) and not v.startswith("#")]
+    except OSError:  # skip a file we cannot read, the same as one that names no version
+        _LOGGER.debug("failed to read %s", path, exc_info=True)
+        return []
 
 
 class PathPythonInfo(PythonInfo):

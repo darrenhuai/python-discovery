@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -228,6 +229,27 @@ def test_read_python_version_file_empty_versions(tmp_path: Path) -> None:
     (tmp_path / ".python-version").write_text("# only comments\n\n", encoding="utf-8")
     result = _read_python_version_file(str(tmp_path), search_parents=False)
     assert result is None
+
+
+def test_read_python_version_file_not_utf8(tmp_path: Path) -> None:
+    (tmp_path / ".python-version").write_bytes(b"# pinned by M\xfcller\n3.12.0\n")
+    result = _read_python_version_file(str(tmp_path), search_parents=False)
+    assert result == ["3.12.0"]
+
+
+def test_read_python_version_file_unreadable_is_skipped(
+    tmp_path: Path, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    child = tmp_path / "child"
+    child.mkdir()
+    (child / ".python-version").write_text("3.12.0\n", encoding="utf-8")
+    (tmp_path / ".python-version").write_text("3.11.0\n", encoding="utf-8")
+    with (tmp_path / ".python-version").open(encoding="utf-8") as parent_file:
+        mocker.patch.object(Path, "open", side_effect=[PermissionError("Permission denied"), parent_file])
+        result = _read_python_version_file(str(child))
+    assert result == ["3.11.0"]
+    assert f"failed to read {child / '.python-version'}" in caplog.messages
 
 
 def test_get_interpreter_multi_spec_all_fail(session_cache: DiskCache) -> None:
