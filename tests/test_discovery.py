@@ -360,11 +360,10 @@ def test_shim_uses_python_version_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_shim_python_version_file_not_utf8(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _create_version_manager(tmp_path, "PYENV_ROOT")
-    _create_versioned_binary(root, ("versions",), "2.7.18", "python2.7")
+    real_binary = _create_versioned_binary(root, ("versions",), "2.7.18", "python2.7")
     shim = root / "shims" / ("python2.7.exe" if IS_WIN else "python2.7")
     shim.touch(mode=0o755)
-    # what `"2.7.18" > .python-version` writes in Windows PowerShell 5.1
-    (tmp_path / ".python-version").write_bytes("2.7.18\r\n".encode("utf-16"))
+    (tmp_path / ".python-version").write_bytes(b"# pinned by M\xfcller\n2.7.18\n")
 
     monkeypatch.setenv("PATH", str(root / "shims"))
     monkeypatch.setenv("PYENV_ROOT", str(root))
@@ -374,7 +373,7 @@ def test_shim_python_version_file_not_utf8(tmp_path: Path, monkeypatch: pytest.M
     with patch("python_discovery._discovery.PathPythonInfo.from_exe") as mock_from_exe:
         mock_from_exe.return_value = None
         get_interpreter("python2.7", [])
-        assert mock_from_exe.call_args_list[0][0][0] == str(shim)
+        assert mock_from_exe.call_args_list[0][0][0] == str(real_binary)
 
 
 def test_shim_pyenv_version_env_takes_priority_over_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

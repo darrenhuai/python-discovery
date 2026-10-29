@@ -532,8 +532,9 @@ def _read_python_version_file(start: str | Path, *, search_parents: bool = True)
     """Read a ``.python-version`` file, optionally searching parent directories."""
     current = start
     while True:
-        candidate = os.path.join(current, ".python-version") if Path(current).is_dir() else current
-        if Path(candidate).is_file() and (versions := _versions_in_file(candidate)):
+        # unlike pathlib before 3.14, os.path answers False when a directory on the way can't be searched
+        candidate = os.path.join(current, ".python-version") if os.path.isdir(current) else current
+        if os.path.isfile(candidate) and (versions := _versions_in_file(candidate)):
             return versions
         if not search_parents:
             return None

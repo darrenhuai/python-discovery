@@ -249,7 +249,22 @@ def test_read_python_version_file_unreadable_is_skipped(
         mocker.patch.object(Path, "open", side_effect=[PermissionError("Permission denied"), parent_file])
         result = _read_python_version_file(str(child))
     assert result == ["3.11.0"]
-    assert f"failed to read {child / '.python-version'}" in caplog.messages
+    assert ("python_discovery._discovery", logging.DEBUG, f"failed to read {child / '.python-version'}") in (
+        caplog.record_tuples
+    )
+
+
+@pytest.mark.skipif(IS_WIN or os.geteuid() == 0, reason="POSIX search permission that root bypasses")
+def test_read_python_version_file_unsearchable_directory_is_skipped(tmp_path: Path) -> None:
+    (tmp_path / ".python-version").write_text("3.11.0\n", encoding="utf-8")
+    locked = tmp_path / "locked"
+    (locked / "work").mkdir(parents=True)
+    locked.chmod(0o600)
+    try:
+        result = _read_python_version_file(str(locked / "work"))
+    finally:
+        locked.chmod(0o700)
+    assert result == ["3.11.0"]
 
 
 def test_get_interpreter_multi_spec_all_fail(session_cache: DiskCache) -> None:
