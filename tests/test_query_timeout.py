@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import sysconfig
 from subprocess import Popen, check_call
 from typing import TYPE_CHECKING
 
@@ -106,7 +107,10 @@ def test_from_exe_venv_base_query_timeout(mocker: MockerFixture, tmp_path: Path)
 def test_get_interpreter_current_system_query_timeout(mocker: MockerFixture) -> None:
     mocker.patch.object(PythonInfo, "_current_system", None)
     communicate = mocker.spy(Popen, "communicate")
-    spec = f"{sys.version_info.major}.{sys.version_info.minor}"
+    threaded = "t" if sysconfig.get_config_var("Py_GIL_DISABLED") else ""
+    spec = f"{sys.version_info.major}.{sys.version_info.minor}{threaded}"
 
-    assert get_interpreter(spec, env={**os.environ, "PY_DISCOVERY_TIMEOUT": "42"}) is not None
+    result = get_interpreter(spec, env={**os.environ, "PY_DISCOVERY_TIMEOUT": "42"})
+
     assert {call.kwargs["timeout"] for call in communicate.call_args_list} == {42.0}
+    assert result is PythonInfo.current_system()
