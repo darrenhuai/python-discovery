@@ -227,7 +227,7 @@ def _propose_current_and_windows(
     env: Mapping[str, str],
     tested_exes: set[str],
 ) -> Generator[tuple[PythonInfo | None, bool], None, None]:
-    current_python = PythonInfo.current_system(cache)
+    current_python = PythonInfo.current_system(cache, env=env)
     if _is_new_exe(str(current_python.executable), tested_exes):
         yield current_python, True
 

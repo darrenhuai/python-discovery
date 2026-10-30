@@ -468,6 +468,29 @@ def test_resolve_to_system_leaves_shared_info_untouched(mocker: MockerFixture, s
     assert shared.executable == "/some/system/python"
 
 
+@pytest.mark.parametrize(
+    "system_executable",
+    [
+        pytest.param("/some/system/python", id="resolved"),
+        pytest.param(None, id="discovered"),
+    ],
+)
+def test_resolve_to_system_forwards_env(mocker: MockerFixture, system_executable: str | None) -> None:
+    base = copy.deepcopy(CURRENT)
+    base.system_executable = base.executable = "/some/system/python"
+    from_exe = mocker.patch.object(PythonInfo, "from_exe", return_value=base)
+    discover_exe = mocker.patch.object(PythonInfo, "discover_exe", return_value=base)
+    target = copy.deepcopy(CURRENT)
+    target.system_executable = system_executable
+    target.real_prefix, target.base_prefix, target.executable = None, "/some/venv", "/some/venv/python"
+    env = {"PY_DISCOVERY_TIMEOUT": "42"}
+
+    PythonInfo.resolve_to_system(None, target, env=env)
+
+    (base_query,) = [*discover_exe.call_args_list, *from_exe.call_args_list]
+    assert base_query.kwargs["env"] is env
+
+
 def test_resolve_to_system_returns_target_when_executable_unchanged() -> None:
     target = copy.deepcopy(CURRENT)
     target.system_executable = target.executable = "/some/system/python"

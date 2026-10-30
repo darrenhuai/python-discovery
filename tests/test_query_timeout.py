@@ -3,14 +3,16 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from subprocess import Popen
+from subprocess import Popen, check_call
 from typing import TYPE_CHECKING
 
 import pytest
 
-from python_discovery import PythonInfo
+from python_discovery import PythonInfo, get_interpreter
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_mock import MockerFixture
 
 
@@ -86,3 +88,25 @@ def test_from_exe_timeout_warning_cache_is_bounded(caplog: pytest.LogCaptureFixt
     assert [record.getMessage() for record in caplog.records] == [
         "ignoring PY_DISCOVERY_TIMEOUT='invalid-timeout-0', not a positive number of seconds; using 15.0"
     ]
+
+
+def test_from_exe_venv_base_query_timeout(mocker: MockerFixture, tmp_path: Path) -> None:
+    check_call([sys.executable, "-m", "venv", "--without-pip", str(tmp_path)])
+    exe = tmp_path / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    communicate = mocker.spy(Popen, "communicate")
+
+    result = PythonInfo.from_exe(str(exe), env={**os.environ, "PY_DISCOVERY_TIMEOUT": "42"})
+
+    assert result is not None
+    timeouts = [call.kwargs["timeout"] for call in communicate.call_args_list]
+    assert len(timeouts) > 1  # the venv, then its base
+    assert set(timeouts) == {42.0}
+
+
+def test_get_interpreter_current_system_query_timeout(mocker: MockerFixture) -> None:
+    mocker.patch.object(PythonInfo, "_current_system", None)
+    communicate = mocker.spy(Popen, "communicate")
+    spec = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+    assert get_interpreter(spec, env={**os.environ, "PY_DISCOVERY_TIMEOUT": "42"}) is not None
+    assert {call.kwargs["timeout"] for call in communicate.call_args_list} == {42.0}
