@@ -95,7 +95,9 @@ def test_generate_re_with_debug(name: str) -> None:
     assert pat.fullmatch(name) is not None
 
 
-@pytest.mark.parametrize("name", ["python3.99t", "python3.99d", "python3.99-dbg", "python3.99td", "python3.99t-dbg"])
+@pytest.mark.parametrize(
+    "name", ["python3.99t", "python3.99d", "python3.99-dbg", "python3.99-debug", "python3.99td", "python3.99t-dbg"]
+)
 @pytest.mark.parametrize("windows", [pytest.param(False, id="posix"), pytest.param(True, id="windows")])
 def test_generate_re_all_implementations_matches_variant_names(name: str, windows: bool) -> None:
     spec = PythonSpec("", None, None, None, None, None, None)
@@ -106,7 +108,7 @@ def test_generate_re_all_implementations_matches_variant_names(name: str, window
 @pytest.mark.parametrize("name", ["python3.99t", "python3.99d", "python3.99-dbg"])
 @pytest.mark.parametrize("key", ["python", "3.99"])
 def test_generate_re_single_lookup_skips_variant_names(key: str, name: str) -> None:
-    """A spec silent about a variant must not let get_interpreter pick that build ahead of the default one."""
+    """A single lookup must not let get_interpreter pick a variant build ahead of the default one."""
     pat = PythonSpec.from_string_spec(key).generate_re(windows=False)
     assert pat.fullmatch(name) is None
 
