@@ -152,8 +152,7 @@ class PythonInfo:  # ruff:ignore[too-many-public-methods]
                 for k, v in self.sysconfig_vars.items()
             },
         )
-        # broken packaging fallback: the distutils headers path minus the distribution name; there is no headers path
-        # without distutils (3.11+), and joining that empty parent would report the prefix as the include directory
+        # broken packaging fallback; without distutils there is no headers path and the empty join gives the prefix
         if not os.path.exists(path) and (headers := os.path.dirname(self.install_path("headers"))):
             fallback = os.path.join(self.prefix, headers)
             if os.path.exists(fallback):
